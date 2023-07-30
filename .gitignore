@@ -1,0 +1,13 @@
+
+
+
+.vscode/
+
+*.pyc
+__pycache__/
+*.pyo
+
+# Ignore the virtual environment (if used)
+venv/
+env/
+*.env
