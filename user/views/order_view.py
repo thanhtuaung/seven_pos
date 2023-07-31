@@ -1,7 +1,6 @@
 from rest_framework import generics
 from ..serializers import (
     OrderSerializer,
-    OrderDetailSerializer,
     OrderCreateSerializer,
     OrderDetailCreateSerializer,
 )
@@ -10,6 +9,7 @@ from rest_framework.response import Response
 from datetime import datetime
 from ..models import Product, Order, AppUser
 from ..utility import constants
+from .view_utility.list_view import BaseListView
 from ..utility.utility_functions import get_object_or_none
 from rest_framework.decorators import (
     permission_classes,
@@ -89,6 +89,31 @@ def create_order(request: Request):
     return Response(data=res, status=res_status)
 
 
-class OrderListView(generics.ListAPIView):
+class OrderListView(BaseListView):
     serializer_class = OrderSerializer
     queryset = Order.objects.all()
+    key_name = 'orders'
+
+
+class OrderUpdateView(generics.UpdateAPIView):
+    
+    def put(self, request, *args, **kwargs):
+
+        order_id = request.data.get('order_id')
+        if order_id:
+            order = self.get_object()
+            if order is None:
+                res = {"error": "Order with this id doesn't exist"}
+                res_status = constants.ERROR_STATUS
+            else:
+                response = super().partial_update(request, *args, **kwargs)
+                return response
+
+        else:
+            res = {"error": "order_id field is required"}
+            res_status = constants.ERROR_STATUS
+        return Response(data=res, status=res_status)
+    
+    def get_object(self):
+        id = self.request.get('order_id')
+        return get_object_or_none(Order, id=id)
