@@ -1,9 +1,16 @@
 from rest_framework import generics
-from ..serializers.order_serializer import OrderSerializer
+from ..serializers import (
+    OrderSerializer,
+    OrderDetailSerializer,
+    OrderCreateSerializer,
+    OrderDetailCreateSerializer,
+)
 from rest_framework.request import Request
 from rest_framework.response import Response
-from ..models.order import Order
+from datetime import datetime
+from ..models import Product, Order, AppUser
 from ..utility import constants
+from ..utility.utility_functions import get_object_or_none
 from rest_framework.decorators import (
     permission_classes,
     authentication_classes,
@@ -13,43 +20,75 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
 def create_order(request: Request):
     data = request.data
-    if not ("customer_id" in data and "product_ids" in data and "status" in data):
-        res = {'error': 'customer_id, product_ids and status fields are required'}
+    if not ("customer_id" in data and "products" in data and "status" in data):
+        res = {"error": "customer_id, products and status fields are required"}
         res_status = constants.ERROR_STATUS
     else:
         order_data = {
-            "customer": data['customer_id'],
-            "status": data['status'],
+            "customer": data["customer_id"],
+            "ordered_date": datetime.now(),
+            "status": data["status"],
         }
 
-        order_serializer = OrderSerializer(data=order_data)
+        customer = get_object_or_none(AppUser, id=data["customer_id"])
+
+        if customer is None:
+            return Response(
+                data={"error": "customer with this id doesn't exist"},
+                status=constants.ERROR_STATUS,
+            )
+
+        order_serializer = OrderCreateSerializer(data=order_data)
+        detail_serializers = []
 
         if order_serializer.is_valid():
-            res = None
-            res_status = constants.CREATE_SUCCESS
+            for product in data["products"]:
+                product_id = product["id"]
+                quantity = product["quantity"]
+                product = get_object_or_none(Product, id=product_id)
+                if product is None:
+                    res = {"error": f"Product with id({product_id}) does not exist"}
+                    res_status = constants.ERROR_STATUS
+                    break
 
-            
+                if (
+                    quantity is None
+                    or not isinstance(quantity, (int, float))
+                    or quantity <= 0
+                ):
+                    print(f"Is instance {isinstance(quantity, float)}")
+                    res = {
+                        "error": "Invalid quantity.Quantity must be positive greater than zero"
+                    }
+                    res_status = constants.ERROR_STATUS
+                    break
 
+                detail_seri = OrderDetailCreateSerializer(
+                    data={"product": product_id, "quantity": quantity}
+                )
+                detail_serializers.append(detail_seri)
+            else:
+                order: Order = order_serializer.save()
+
+                for seri in detail_serializers:
+                    seri.initial_data["order"] = order.id
+                    if seri.is_valid():
+                        seri.save()
+
+                res = None
+                res_status = constants.CREATE_SUCCESS
         else:
             res = order_serializer.errors
             res_status = constants.ERROR_STATUS
 
-        
-
-    return Response(data=res,status=res_status)
+    return Response(data=res, status=res_status)
 
 
 class OrderListView(generics.ListAPIView):
     serializer_class = OrderSerializer
     queryset = Order.objects.all()
-
-    def get(self, request, *args, **kwargs):
-        response = super().get(request, *args, **kwargs)
-        if response.status_code == 200:
-            response.data = {"orders": response.data}
-        return response
