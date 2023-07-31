@@ -24,7 +24,7 @@ def create_order(request: Request):
     else:
         order_data = {
             "customer": data['customer_id'],
-            "status": data['status']
+            "status": data['status'],
         }
 
         order_serializer = OrderSerializer(data=order_data)
