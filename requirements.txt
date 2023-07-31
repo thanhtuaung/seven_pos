@@ -5,7 +5,7 @@ cffi==1.15.1
 Django==4.2.3
 djangorestframework==3.14.0
 djangorestframework-simplejwt==5.2.2
-mysqlclient==2.2.0
+mysqlclient==2.1.1
 pycparser==2.21
 PyJWT==2.8.0
 pytz==2023.3

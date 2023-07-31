@@ -30,10 +30,10 @@ def create_order(request: Request):
         order_serializer = OrderSerializer(data=order_data)
 
         if order_serializer.is_valid():
+            order_serializer.save()
             res = None
             res_status = constants.CREATE_SUCCESS
 
-            
 
         else:
             res = order_serializer.errors
